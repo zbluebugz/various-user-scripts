@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Twitter - restore original favicon and logo
-// @namespace    restoreOriginalTwitterLogo
+// @name         Twitter - restore Larry the bird favicon and logo
+// @namespace    restoreLarryTheBird
 // @version      0.1
-// @description  Restore the original twitter logo
+// @description  Restore the original twitter favicon and logo "Larry the bird"
 // @author       You
 // @match        https://twitter.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=twitter.com
