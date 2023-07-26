@@ -27,7 +27,7 @@
             }
         }
     }
-    restoreOriginalTwitterFavIcon();
+     setTimeout( restoreOriginalTwitterFavIcon, 25);
 
   // -- retore Larry the bird!
     const css = `
