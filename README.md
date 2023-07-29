@@ -1,3 +1,3 @@
-# reddit-script-requests
+# Various userscripts
 
-In some reddit subs, some users request help with writing scripts.
+Most of these userscripts are created via request in reddit
