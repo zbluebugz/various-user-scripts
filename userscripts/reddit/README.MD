@@ -1,6 +1,8 @@
 # Reddit - change reddit's image sources from preview.redd.it to i.reddit.com
 
-Reddit has been wrapping hosted reddit images with banners, etc and making it difficult to view the image by itself. This script attempts to resolve this by swapping the image's source.
+Reddit has been wrapping hosted reddit images with banners, etc and making it difficult to view the image by itself. 
+
+The script "swap-img-sources.js" attempts to resolve this by changing the image's source from preview.redd.it to i.reddit.com.
 
 ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
  
