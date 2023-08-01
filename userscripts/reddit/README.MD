@@ -6,6 +6,6 @@ The script "swap-img-sources.js" attempts to resolve this by changing the image'
 
 ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ 
  
-Alternative method is to use [requestly addon/extension](https://github.com/requestly/requestly) and importing [a rule](https://github.com/zbluebugz/various-user-scripts/blob/main/userscripts/reddit/requestly-reddit-image-fix.json) that overrides reddit's code for viewing images.
+Alternative method is to use [requestly addon/extension](https://github.com/requestly/requestly) and importing a rule ("requestly-reddit-image-fix.json") that overrides reddit's code for viewing images with banners, etc.
 
 Source: [https://www.reddit.com/r/help/comments/139vitw/comment/jjbriij/](https://www.reddit.com/r/help/comments/139vitw/comment/jjbriij/)
