@@ -1,0 +1,38 @@
+[
+  {
+    "createdBy": "",
+    "creationDate": 1683546028369,
+    "currentOwner": "",
+    "description": "",
+    "groupId": "",
+    "id": "Headers_1xqje",
+    "isSample": false,
+    "lastModifiedBy": "",
+    "modificationDate": 1683549166651,
+    "name": "i.redd.it IMG URL",
+    "objectType": "rule",
+    "pairs": [
+      {
+        "id": "5p2rl",
+        "modifications": {
+          "Request": [
+            {
+              "header": "Accept",
+              "id": "1l8km",
+              "type": "Modify",
+              "value": "image/avif, image/webp, image/apng, */*;q=0.8"
+            }
+          ]
+        },
+        "source": {
+          "key": "host",
+          "operator": "Equals",
+          "value": "i.redd.it"
+        }
+      }
+    ],
+    "ruleType": "Headers",
+    "status": "Active",
+    "version": 2
+  }
+]
