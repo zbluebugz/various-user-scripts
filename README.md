@@ -1,3 +1,3 @@
 # Various userscripts
 
-Most of these userscripts are created via request in reddit
+Most of these userscripts are created via requests in reddit
