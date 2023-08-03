@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube - sort a channel's search results by upload date
 // @namespace    YT-sort-channel-search-results
-// @version      0.6
+// @version      0.7
 // @description  Sort a YT channel search results by upload date
 // @author       You
 // @match        https://www.youtube.com/*
@@ -15,17 +15,18 @@
    Notes:
      A fly-out / slide-out panel is located on the right below the channel search box.
      - has a "tab" showing "↓ ↑"
-     - move mouse over and then click the relevant buttons.
-     Will sort what is listed when either button is clicked.
-     Will not automatically sort as you go or as more videos are dynamically added.
+     - move mouse over the tab and then click the relevant buttons / options.
+     Script will re-sort what is listed when a button is clicked.
+     Can set additional option to prioritise keyword match in video's title and/or description when re-sorting.
+     Will not automatically sort as you scroll, nor when more videos are dynamically added.
 
     NB for programmer:
-    - Don't bother saving the sortKeys to the video elements - when user does another search, YT updates the contents of the existing videos ...
-    - yes, z-index 9999 is required due to YT using high numbers somewhere  ;-)
+    - Don't bother saving the sortKeys to the video elements ...
+    - .. when user does another search, YT updates the contents of the existing videos ...
 */
 
 
-(function() {
+(function () {
     'use strict';
 
     const IS_DEBUGGING = false;
@@ -33,105 +34,130 @@
 
     if (IS_DEBUGGING) console.info(LOG_NAME + 'running ...');
 
-    // -- query selectors
-    const queryContainer = '#contents.ytd-section-list-renderer';
-    const queryMetaData = 'span.inline-metadata-item.style-scope.ytd-video-meta-block';
-
     // -- for debugging - viewing the sortKeys generated.
-    const arraySortKeysData = [];
+    let arrayDebugSortData = [];
 
-    function generateSortKeys(uploadedNode, prioritiseKeywordsMatch = false) {
+    function generateSortKey(uploadedInfo, prioritiseKeywordsMatch = false, sortOrder = 'descending') {
         // -- fyi, by default, array.sort() is string based.
-        // -- uploadedNode = element containing upload info. e.g. 23 days ago
-        // -- title = optional text to append to sortKey for third sortKey value.
-        // -- return two sort keys - ascending, descending
+        // -- uploadedInfo = uploaded info text. e.g. 23 days ago
+        // -- prioritiseKeywordsMatch = flag indicating if this video entry is to be ranked higher or lower.
+        // :: return two sort keys - ascending, descending
 
-        const secondsInMinute = 60;
-        const secondsInHour = 3600;
-        const secondsInDay = 86400;
-        const secondsInWeek = 604800;
-        const secondsInMonth = 2629800; // Approximately, not exact due to varying month lengths.
-        const secondsInYear = 31557600; // Approximately, not exact due to varying leap years.
+        // -- number of seconds in time block
+        const timeLookup = {
+            'minute': 60,
+            'minutes': 60,
+            'hour': 3600,
+            'hours': 3600,
+            'day': 86400,
+            'days': 86400,
+            'week': 604800,
+            'weeks': 604800,
+            'month': 2592000, // (approximate)
+            'months': 2592000,
+            'year': 31536000, // (approximate)
+            'years': 31536000,
+            'no-data': 3153600000, // (e.g. playlists and unknown time units)
+        };
 
-        // -- uploadedNode pattern: 23 days ago; 3 weeks ago; 4 months ago; 1 year ago;
-        let uploadedBits = [];
-        if (typeof uploadedNode === 'object') {
-            // -- this video has uploaded info
-            uploadedBits = uploadedNode.textContent.toLocaleLowerCase().split(' ');
-        }
-        else {
-            // -- this video doesn't have uploaded info
-            uploadedBits = uploadedNode.toLocaleLowerCase().split(' ');
-        }
-
-        let numUpload = parseInt(uploadedBits[0]);
+        const uploadedInfoParts = uploadedInfo.toLocaleLowerCase().split(' ');
+        const numUpload = parseInt(uploadedInfoParts[0], 10);
         let numSeconds = 0;
 
-        if (uploadedBits[0] === 'updated') {
-            if (uploadedBits[1] === 'today') {
-                numSeconds = secondsInDay;
+        if (!isNaN(numUpload)) {
+            // -- uploadedInfo pattern: 23 days ago; 3 weeks ago; 4 months ago; 1 year ago;
+            if (uploadedInfoParts[1] in timeLookup) {
+                // -- lookup known unit types.
+                numSeconds = numUpload * timeLookup[uploadedInfoParts[1]];
             }
-            if (uploadedBits[1] === 'yesterday') {
-                // -- 0.95 because we want these to appear before 1 day entries.
-                numSeconds = parseInt(0.95 * secondsInDay);
+            else {
+                // -- Unknown unit type, so use "no-data"'s values.
+                numSeconds = numUpload * timeLookup['no-data'];
             }
-        }
-        else if (isNaN(numUpload)) {
-            // -- "Just now"?
-            numSeconds = secondsInDay;
-        }
-        else if (uploadedBits[1] === 'hour' || uploadedBits[1] === 'hours') {
-            numSeconds = numUpload * secondsInHour;
-        }
-        else if (uploadedBits[1] === 'day' || uploadedBits[1] === 'days') {
-            numSeconds = numUpload * secondsInDay;
-        }
-        else if (uploadedBits[1] === 'week' || uploadedBits[1] === 'weeks') {
-            numSeconds = numUpload * secondsInWeek;
-        }
-        else if (uploadedBits[1] === 'month' || uploadedBits[1] === 'months') {
-            numSeconds = numUpload * secondsInMonth;
-        }
-        else if (uploadedBits[1] === 'year' || uploadedBits[1] === 'years') {
-            numSeconds = numUpload * secondsInYear;
-        }
-        else if (uploadedBits[1] === 'no-data') {
-            // -- e.g. playlists - don't have uploaded info.
-            numSeconds = 100 * secondsInYear;
         }
         else {
-            // -- hmm ... unknown unit type, so push down ...
-            numSeconds = 100 * secondsInYear;
+            // -- uploadedInfo pattern: Updated today; Updated 6 days ago; Premieres <future>; Streamed 3 weeks ago;
+            if (uploadedInfoParts[0] === 'updated') {
+                if (uploadedInfoParts[1] === 'today') {
+                    // -- when today? - make it appear after 23.5 hours ago.
+                    numSeconds = parseInt(23.5 * timeLookup['hour'], 10)
+                }
+                else if (uploadedInfoParts[1] === 'yesterday') {
+                    // -- when yesterday? - make it appear just before 24 hours ago
+                    // ... so it appears before the 1 day ago videos.
+                    numSeconds = parseInt(23.75 * timeLookup['hour'], 10);
+                }
+                else {
+                    // -- updated x days ago
+                    const numUpdated = parseInt(uploadedInfoParts[1], 10);
+                    if (!isNaN(numUpdated)) {
+                        numSeconds = numUpdated * timeLookup[uploadedInfoParts[2]];
+                    }
+                }
+            }
+            else if (uploadedInfoParts[0] === 'streamed') {
+                // -- "Streamed 2 days ago"
+                numUpload = parseInt(uploadedInfoParts[1], 10);
+                numSeconds = numUpload * timeLookup[uploadedInfoParts[2]];
+            }
+            else if (uploadedInfoParts[0] === 'premieres') {
+                // -- Premieres <future: dd/mm/yyyy, hh:mm>); 
+                // -- set to 30 to keep @ top for newest.
+                numSeconds = 30;
+            }
+            else {
+                // -- Unknown uploaded info text.
+                numSeconds = timeLookup['minute'];
+            }
         }
 
-        // -- decending sortKey ::
-        // :: 00 000 000 000 (11)
-        let sortKey_desc = (prioritiseKeywordsMatch ? '0' : '9') + ('00000000000' + String(numSeconds)).slice(-11);
+        let sortKey = (prioritiseKeywordsMatch ? '0' : '9');
+        const padZeros = '0000000000'; // 10 x 0
+        const padZerosLen = padZeros.length;
+        const bigNum = Number(1 + padZeros);
+        if (sortOrder === 'descending') {
+            // e.g. (without prioritiseKeywordsMatch)
+            // :: 0000025200 = 7 hours
+            // :: 0000345600 = 4 days
+            // :: 0007776000 = 3 months
+            // :: 0946080000 = 30 years
+            // :: 3153600000 = no data / unknown
+            sortKey += (padZeros + String(numSeconds)).slice(-padZerosLen);
+        }
+        else {
+            // e.g. (without prioritiseKeywordsMatch)
+            // :: 16846400000 = no data / unknown
+            // :: 19992224000 = 3 months
+            // :: 19999654400 = 4 days
+            // :: 19999974800 = 7 hours
+            sortKey += String(bigNum - numSeconds);
+        }
 
-        // -- ascending sortKey ::
-        // :: 100,000,000,000
-        let sortKey_asc = (prioritiseKeywordsMatch ? '0' : '9') + String(100000000000 - numSeconds);
-
-        // console.info(LOG_NAME + 'generateSortKeys(); ::', numUpload, numSeconds, uploadedBits, sortKey_asc, sortKey_desc, uploadedNode);
         // -- for debugging purposes ::
+        // -- printed by calling function (laid out in a table format.)
         if (IS_DEBUGGING) {
-            arraySortKeysData.push({
-                "numUpload" : numUpload,
+            arrayDebugSortData.push({
+                "numUpload": numUpload,
                 "numSeconds": numSeconds,
-                "sortKeyAsc" : sortKey_asc,
-                "sortKeyDesc" : sortKey_desc,
-                "uploadedBits" : uploadedBits,
-                "node" : uploadedNode
+                "prioritise": prioritiseKeywordsMatch,
+                "sortOrder": sortOrder,
+                "sortKey": sortKey,
+                "uploadedInfoParts": uploadedInfoParts,
+                "uploadedInfo": uploadedInfo
             });
         }
 
-        return [sortKey_asc, sortKey_desc];
+        return sortKey;
     }
 
+    function findSearchKeywordMatch(element, searchKeyword) {
+        const text = element.textContent.split('\n').join(' ').trim().toLocaleLowerCase();
+        return text.includes(searchKeyword);
+    }
 
     function channelSortSearchResults(sortOrder, findKeywordInTitle = false, findKeywordInDescription = false) {
 
-        const elContainer = document.querySelector(queryContainer);
+        const elContainer = document.querySelector('#contents.ytd-section-list-renderer');
         if (elContainer === null) {
             return [1, 'Container not found'];
         }
@@ -143,63 +169,71 @@
         // if (IS_DEBUGGING) console.info(LOG_NAME + 'channelSortSearchResults(); sorting ..' + sortOrder);
 
         // -- get the container's continuation-renderer element
-        let elContinuation = elContainer.querySelector('ytd-continuation-item-renderer');
+        const elContinuation = elContainer.querySelector('ytd-continuation-item-renderer');
 
         // -- get the container's children, except for the continuation-renderer ...
-        let collectionOfVideos = elContainer.querySelectorAll('ytd-item-section-renderer');
+        const collectionOfVideos = elContainer.querySelectorAll('ytd-item-section-renderer');
 
         // -- arrayData item: [sortKey, elVideo];
         let arrayData = [];
 
         let searchKeyword
         if (findKeywordInTitle || findKeywordInDescription) {
+            // -- get the search keyword(s) the user used for searching.
             searchKeyword = document.querySelector('input.tp-yt-paper-input').value.toLocaleLowerCase();
+        }
+
+        if (IS_DEBUGGING) {
+            arrayDebugSortData = [];
         }
 
         for (let i = 0; i < collectionOfVideos.length; i++) {
             const elVideo = collectionOfVideos[i];
 
-            // -- get the sort data
-            let sortKeyAsc;
-            let sortKeyDesc
-
+            const isStandaloneVideo = (elVideo.querySelector('ytd-playlist-renderer') === null);
             let foundKeywordInVideoTD = false;
-            if (findKeywordInTitle === true) {
-                let textVideoTitle = elVideo.querySelector('#video-title').innerText.toLocaleLowerCase();
-                foundKeywordInVideoTD = (textVideoTitle.indexOf(searchKeyword) > -1);
-            }
-            if (foundKeywordInVideoTD === false && findKeywordInDescription === true) {
-                let textVideoDescription = elVideo.querySelector('#description-text').innerText.toLocaleLowerCase();
-                foundKeywordInVideoTD = (textVideoDescription.indexOf(searchKeyword) > -1);
+
+            if (findKeywordInTitle || findKeywordInDescription) {
+                const arrVideoTitles = elVideo.querySelectorAll('#video-title');
+                const elVideoDescription = elVideo.querySelector('#description-text');
+
+                if (findKeywordInTitle) {
+                    foundKeywordInVideoTD = findSearchKeywordMatch(arrVideoTitles[0], searchKeyword);
+                }
+                if (foundKeywordInVideoTD === false && findKeywordInDescription) {
+                    if (isStandaloneVideo) {
+                        foundKeywordInVideoTD = findSearchKeywordMatch(elVideoDescription, searchKeyword);
+                    }
+                    else {
+                        // -- playlist
+                        // -- already checked the first #video-title, so, scan the rest.
+                        for (let i = 1; i < arrVideoTitles.length; i++) {
+                            if (findSearchKeywordMatch(arrVideoTitles[i], searchKeyword)) {
+                                foundKeywordInVideoTD = true;
+                                break;
+                            }
+                        }
+                    }
+                }
             }
 
-            let metaData = elVideo.querySelectorAll(queryMetaData);
-            if (metaData.length > 0) {
+            // -- nb: playlists don't have uploaded info.
+            let uploadedInfo = '1 no-data no-data';
+            if (isStandaloneVideo) {
+                const metaData = elVideo.querySelectorAll('span.inline-metadata-item.style-scope.ytd-video-meta-block');
                 // -- last item of metaData holds the uploaded info.
-                [sortKeyAsc, sortKeyDesc] = generateSortKeys(metaData[metaData.length -1], foundKeywordInVideoTD);
-            }
-            else {
-                // -- video doesn't have uploaded info.
-                [sortKeyAsc, sortKeyDesc] = generateSortKeys('1 no-data no-data', foundKeywordInVideoTD);
+                uploadedInfo = metaData[metaData.length - 1].textContent;
             }
 
-            if (sortOrder === 'ascending') {
-                arrayData.push([sortKeyAsc, elVideo]);
-            }
-            else if (sortOrder === 'descending') {
-                arrayData.push([sortKeyDesc, elVideo]);
-            }
-            else {
-                return;
-            }
+            // -- add generated sort key and video to array ...
+            arrayData.push([generateSortKey(uploadedInfo, foundKeywordInVideoTD, sortOrder), elVideo]);
         }
 
-        if (IS_DEBUGGING) console.table(arraySortKeysData);
+        if (IS_DEBUGGING) console.table(arrayDebugSortData);
 
         // if (IS_DEBUGGING) console.info(LOG_NAME + 'channelSortSearchResults(); arrayData - before sort:', sortOrder, arrayData);
         arrayData.sort();
         // if (IS_DEBUGGING) console.info(LOG_NAME + 'channelSortSearchResults(); arrayData - after sort:', arrayData);
-
 
         // -- repaints are painfully ... so use another method of redrawing the elContainer's children.
         const fragment = document.createDocumentFragment();
@@ -214,103 +248,105 @@
         return [100, 'videos sorted'];
     }
 
-    function togglePanel(panelID) {
-        const elPanel = document.getElementById(panelID);
-        if (elPanel === null) {
+    function drawPanelForSortButtons() {
+
+        // console.info(LOG_NAME + 'drawPanelForSortButtons(); ~ running ~');
+
+        // -- show up on pages having the following URL pattern:
+        // :: https://www.youtube.com/@<channel-name>/search?query=<searchTerm>
+
+        if (window.location.hostname !== "www.youtube.com") {
             return;
         }
-        elPanel.classList.toggle('closed');
-    }
 
-    function toggleSortButtonsPanel() {
-
-        // console.info(LOG_NAME + 'toggleSortButtonsPanel(); ~ running ~');
-
-        // -- show up on pages in this pattern:
-        // :: https://www.youtube.com/@<username>/search?query=<searchTerm>
-        // const URL_PATTERN = new RegExp("https://www\\.youtube\\.com/@(\\w+)/search\\?query");
-        const URL_PATTERN = new RegExp(/https:\/\/www\.youtube\.com\/@(\w+)\/search/);
-        const showPanel = URL_PATTERN.test(window.location.href);
+        let showPanel = false;
+        if (window.location.pathname.startsWith('/@')) {
+            let pathnameBits = window.location.pathname.split('/');
+            if (pathnameBits.length > 2) {
+                showPanel = (pathnameBits[2] === 'search')
+            }
+        }
 
         const panelID = 'ytscPanel';
         const panelStyleID = 'ytscPanelStyles';
 
         if (IS_DEBUGGING) console.info(LOG_NAME + 'showPanel:', showPanel);
+        // console.info(LOG_NAME + 'showPanel:', showPanel);
 
         if (showPanel) {
             // -- locate the element place the panel
             const elContentContainer = document.querySelector('#contentContainer.tp-yt-app-header');
             if (!elContentContainer) {
-                if (IS_DEBUGGING) console.info(LOG_NAME + 'toggleSortButtonsPanel(); - cannot find a place for the buttons.');
+                if (IS_DEBUGGING) console.info(LOG_NAME + 'drawPanelForSortButtons(); - cannot find a place for the buttons.');
                 return;
             }
             // -- does the panel exists?
             if (document.getElementById(panelID) !== null) {
-                if (IS_DEBUGGING) console.info(LOG_NAME + 'toggleSortButtonsPanel(); - found the sort panel.');
+                if (IS_DEBUGGING) console.info(LOG_NAME + 'drawPanelForSortButtons(); - found the sort panel.');
                 return;
             }
 
             // -- check if panel's style exists or not ...
             if (!document.head.querySelector(`#${panelStyleID}`)) {
                 const css = `
-        div.yt-sort-channel-panel {
-            position:fixed;
-            top:${elContentContainer.clientHeight+15}px;
-            right:-205px;
-            width:240px;
-            margin:1rem;
-            font-size: 1.2rem;
-            background-color: var(--ytd-searchbox-legacy-button-color);
-            border:1px solid var(--ytd-searchbox-border-color);
-            border-radius: 0.75rem 0 0 0.75rem;
-            transition:300ms;
-            z-index:9999; /* yeah, YT uses high numbers */
+                    div.yt-sort-channel-panel {
+                        position:fixed;
+                        top:${elContentContainer.clientHeight + 15}px;
+                        right:-205px;
+                        width:240px;
+                        margin:1rem;
+                        font-size: 1.2rem;
+                        background-color: var(--ytd-searchbox-legacy-button-color);
+                        border:1px solid var(--ytd-searchbox-border-color);
+                        border-radius: 0.75rem 0 0 0.75rem;
+                        transition:300ms;
+                        z-index:9999; /* yeah, YT uses high numbers */
 
-            display:flex;
-            align-items:center;
-            box-sizing: border-box;
-        }
-        div.yt-sort-channel-panel * {
-            font-size: inherit;
-        }
-        div.yt-sort-channel-panel > div {
-            padding: 1rem 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: var(--yt-spec-text-primary);
-        }
-        div.yt-sort-channel-panel > div.col-1 {
-            flex-basis: 18%;
-            font-size:1.5rem;
-        }
-        div.yt-sort-channel-panel > div.col-2 {
-            flex-basis: 82%;
-            border-left:1px solid var(--ytd-searchbox-border-color);
-        }
-        div.yt-sort-channel-panel button {
-            width: 150px;
-            margin:0.5rem auto;
-            padding: 0.7rem;
-            cursor:pointer;
-        }
-        div.yt-sort-channel-panel > div.col-2 div {
-            margin:0.5rem auto;
-            text-align: left;
-        }
-        div.yt-sort-channel-panel label {
-            display: block;
-            width: 150px;
-            padding: 0.35rem;
-        }
-        div.yt-sort-channel-panel label input {
-            margin-right: 0.65rem;
-            margin-left: 0;
-        }
-        div.yt-sort-channel-panel:hover {
-            right:-10px;
-        }
-        `;
+                        display:flex;
+                        align-items:center;
+                        box-sizing: border-box;
+                    }
+                    div.yt-sort-channel-panel * {
+                        font-size: inherit;
+                    }
+                    div.yt-sort-channel-panel > div {
+                        padding: 1rem 0;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        color: var(--yt-spec-text-primary);
+                    }
+                    div.yt-sort-channel-panel > div.col-1 {
+                        flex-basis: 18%;
+                        font-size:1.5rem;
+                    }
+                    div.yt-sort-channel-panel > div.col-2 {
+                        flex-basis: 82%;
+                        border-left:1px solid var(--ytd-searchbox-border-color);
+                    }
+                    div.yt-sort-channel-panel button {
+                        width: 150px;
+                        margin:0.5rem auto;
+                        padding: 0.7rem;
+                        cursor:pointer;
+                    }
+                    div.yt-sort-channel-panel > div.col-2 div {
+                        margin:0.5rem auto;
+                        text-align: left;
+                    }
+                    div.yt-sort-channel-panel label {
+                        display: block;
+                        width: 150px;
+                        padding: 0.35rem;
+                    }
+                    div.yt-sort-channel-panel label input {
+                        margin-right: 0.65rem;
+                        margin-left: 0;
+                    }
+                    div.yt-sort-channel-panel:hover {
+                        right:-10px;
+                    }
+                    `;
                 const style = document.createElement('style');
                 style.id = panelStyleID;
                 style.textContent = css;
@@ -376,24 +412,18 @@
             elContentContainer.appendChild(elPanel);
 
             // -- add click events ..
-            btnSortDesc.addEventListener('click', () => {
+            btnSortDesc.addEventListener('click', (event) => {
                 // -- newest
                 event.stopPropagation();
                 channelSortSearchResults('descending', cbTitleRelevance.checked, cbDescriptionRelevance.checked);
             });
-            btnSortAsc.addEventListener('click', () => {
+            btnSortAsc.addEventListener('click', (event) => {
                 // -- oldest
                 event.stopPropagation();
                 channelSortSearchResults('ascending', cbTitleRelevance.checked, cbDescriptionRelevance.checked);
             });
 
-            // -- make the panel shrink/expand
-            elPanel.addEventListener('click', () => {
-                event.stopPropagation();
-                elPanel.classList.toggle('collapsed');
-            });
-
-            if (IS_DEBUGGING) console.info(LOG_NAME + 'toggleSortButtonsPanel(); added the channel\s search panel.');
+            if (IS_DEBUGGING) console.info(LOG_NAME + 'drawPanelForSortButtons(); added the channel\s search panel.');
         }
 
         else {
@@ -405,9 +435,17 @@
         }
     }
 
-    // -- YT doesn't reload the page in typical fashion
-    // ... so call this function every X milli-seconds to check if need to create the buttons again ...
-    setInterval(toggleSortButtonsPanel, 3500);
+    // -- YT doesn't reload the page in typical fashion,
+    // -- so run mutation observer ... 
+    function handleMutations(mutationsList, observer) {
+        // -- slow down the number of calls to main function.
+        const addedDivMutations = mutationsList.some((mutation) => Array.from(mutation.addedNodes).some((node) => node instanceof HTMLDivElement));
+        if (addedDivMutations) {
+            drawPanelForSortButtons();
+        }
+    }
+    const observer = new MutationObserver(handleMutations);
+    observer.observe(document.body, { childList: true, subtree: true });
 
     if (IS_DEBUGGING) console.info(LOG_NAME + '... finished');
 
