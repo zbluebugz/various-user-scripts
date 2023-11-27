@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube - sort a channel's search results by upload date
 // @namespace    YT-sort-channel-search-results
-// @version      0.7
+// @version      0.8
 // @description  Sort a YT channel search results by upload date
 // @author       You
 // @match        https://www.youtube.com/*
@@ -23,6 +23,13 @@
     NB for programmer:
     - Don't bother saving the sortKeys to the video elements ...
     - .. when user does another search, YT updates the contents of the existing videos ...
+
+
+    Change log/history:
+    v0.8 :: November 2023
+        2 x bugs reported by 4nds (github)
+        Bug: "numUpload" variable - changed from const to let
+        Bug: missing apostrophe in console.info output - channel\s --> channel\'s
 */
 
 
@@ -61,7 +68,7 @@
         };
 
         const uploadedInfoParts = uploadedInfo.toLocaleLowerCase().split(' ');
-        const numUpload = parseInt(uploadedInfoParts[0], 10);
+        let numUpload = parseInt(uploadedInfoParts[0], 10);
         let numSeconds = 0;
 
         if (!isNaN(numUpload)) {
@@ -101,7 +108,7 @@
                 numSeconds = numUpload * timeLookup[uploadedInfoParts[2]];
             }
             else if (uploadedInfoParts[0] === 'premieres') {
-                // -- Premieres <future: dd/mm/yyyy, hh:mm>); 
+                // -- Premieres <future: dd/mm/yyyy, hh:mm>);
                 // -- set to 30 to keep @ top for newest.
                 numSeconds = 30;
             }
@@ -291,7 +298,7 @@
                 const css = `
                     div.yt-sort-channel-panel {
                         position:fixed;
-                        top:${elContentContainer.clientHeight + 15}px;
+                        top:${elContentContainer.clientHeight + 200}px;
                         right:-205px;
                         width:240px;
                         margin:1rem;
@@ -423,7 +430,7 @@
                 channelSortSearchResults('ascending', cbTitleRelevance.checked, cbDescriptionRelevance.checked);
             });
 
-            if (IS_DEBUGGING) console.info(LOG_NAME + 'drawPanelForSortButtons(); added the channel\s search panel.');
+            if (IS_DEBUGGING) console.info(LOG_NAME + 'drawPanelForSortButtons(); added the channel\'s search panel.');
         }
 
         else {
@@ -436,7 +443,7 @@
     }
 
     // -- YT doesn't reload the page in typical fashion,
-    // -- so run mutation observer ... 
+    // -- so run mutation observer ...
     function handleMutations(mutationsList, observer) {
         // -- slow down the number of calls to main function.
         const addedDivMutations = mutationsList.some((mutation) => Array.from(mutation.addedNodes).some((node) => node instanceof HTMLDivElement));
