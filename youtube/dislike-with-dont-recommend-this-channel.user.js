@@ -102,6 +102,7 @@
         const dislikeButtons = document.querySelectorAll(`[id="dislike-button"]:not(${ATT_FLAGGED})`);
         for (const btnDislike of dislikeButtons) {
             btnDislike.addEventListener('click', dontRecommendChannel);
+            btnDislike.setAttribute(ATT_FLAGGED, '1');
         }
         setTimeout(listenToDislikeButtons, 500);
     }
