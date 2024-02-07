@@ -12,6 +12,10 @@
 ## sort-playlists.user.js
 - Sort your playlists in alphabetical order
 - Add Top / Down buttons for scrolling through playlists
+ 
+ 
+## dislike-with-dont-recommend-this-channel.user.js
+- Watching a YT Short video, clicking on Dislike will also trigger "Don't recommed this video" action.
 
  
 Requires a script manager to run the scripts.
