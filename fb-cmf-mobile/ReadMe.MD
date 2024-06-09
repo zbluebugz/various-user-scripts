@@ -6,6 +6,6 @@ For use with Andriod + FireFox* + Userscript manager**
 (**) e.g. Tampermoneky, ViolentMonkey
 
 Works on https://m.facebook.com only.
-
-~~~
+<br>
+<br>
 NB: This is a prototype/test version. No support / feature requests will be given.
