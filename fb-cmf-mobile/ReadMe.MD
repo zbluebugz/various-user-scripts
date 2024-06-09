@@ -2,8 +2,8 @@
 
 For use with Andriod + FireFox* + Userscript manager**
 
-*) Or other browsers that support Extensions/Addons on the Android device<br>
-**) e.g. Tampermoneky, ViolentMonkey
+(*) Or other browsers that support Extensions/Addons on the Android device<br>
+(**) e.g. Tampermoneky, ViolentMonkey
 
 Works on https://m.facebook.com only.
 
