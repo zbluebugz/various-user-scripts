@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         FB - Clean my feeds (mobile) (1.01j)
-// @description  Hide Sponsored, Paid partnership, Suggestions and Nuisance posts in FB's News Feed + Groups Feed
+// @description  Hide Sponsored, Paid partnership, Suggestions and Nuisance posts in FB's News Feed + Groups Feed. For Android + Firefox.
 // @namespace    https://greasyfork.org/users/812551
-// @supportURL   https://github.com/zbluebugz/facebook-clean-my-feeds/issues
+// @supportURL   https://github.com/zbluebugz/various-user-scripts/tree/main/fb-cmf-mobile
 // @version      1.01j
 // @author       zbluebugz (https://github.com/zbluebugz/)
 // @match        https://m.facebook.com/*
