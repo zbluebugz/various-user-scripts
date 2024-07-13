@@ -1,4 +1,4 @@
-# Hide \<rt\> Elements in `<ruby>` Tags During Text Selection
+# Hide \<rt\> Elements in `\<ruby\>` Tags During Text Selection
 
 For use on the https://www3.nhk.or.jp/news/easy/ website.
 
